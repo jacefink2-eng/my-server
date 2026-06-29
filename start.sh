@@ -1,29 +1,27 @@
 #!/bin/bash
 
-# Start a background health server so Render marks the deployment successful
+# Start background health server for Render
 python3 -m http.server 8080 &
 
-# Create the specific workspace directory expected by the engine
+# Build local directory path
 WORKDIR="/tmp/vm"
 mkdir -p "$WORKDIR"
 rm -f "$WORKDIR/ubuntu.qcow2"
 
-# Create a virtual named pipe matching your exact filename
+# Create a virtual named pipe
 mkfifo "$WORKDIR/ubuntu.qcow2"
 
-# Your specific Google Drive file ID token
-FILE_ID="1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
+# REPLACE THIS LINK with your new direct download link from Step 1
+DIRECT_LINK="https://your-new-direct-link-here.com"
 
-echo "Initializing on-the-fly streaming pipeline for ubuntu.qcow2..."
+echo "Streaming ubuntu.qcow2 on-the-fly from high-speed storage..."
 
-# Run curl in the background, feeding Google Drive blocks straight into the pipe
-curl -L -b "$WORKDIR/cookies.txt" \
-  "https://google.com(curl -s -L -c "$WORKDIR/cookies.txt" 'https://google.com | grep -o 'confirm=[^&]*' | cut -d= -f2)&id="$FILE_ID" \
-  -o "$WORKDIR/ubuntu.qcow2" &
+# Stream the raw file directly into the named pipe backend
+curl -L "$DIRECT_LINK" -o "$WORKDIR/ubuntu.qcow2" &
 
-echo "Launching VM emulator container. Listening to streaming blocks..."
+echo "Launching VM engine. Booting stream blocks..."
 
-# Boot QEMU using the stream pipe as a raw data input stream
+# Run the virtual machine directly from the incoming network stream
 qemu-system-x86_64 \
   -m 256 \
   -drive file="$WORKDIR/ubuntu.qcow2",format=raw,cache=none \
