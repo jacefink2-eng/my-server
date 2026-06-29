@@ -1,30 +1,71 @@
 #!/bin/bash
 
-# Start background health server for Render
+# Start background health server for Render so deployments pass
 python3 -m http.server 8080 &
 
 echo "Initializing Zero-Download Network Fabric..."
+echo "Spawning real-time Google Drive translation layer..."
 
-# 1. PASTE YOUR ACTUAL HTTPS LINK HERE (Leave the quotes!)
-REAL_HTTPS_URL="YOUR_HTTPS_LINK_HERE"
+# Create a local proxy loop script using Python to bypass Drive safety walls
+cat << 'EOF' > proxy.py
+import sys
+import http.server
+import urllib.request
+import re
 
-# Extract the hostname (e.g., cdn.discordapp.com)
-HOST=$(echo "$REAL_HTTPS_URL" | sed -e 's|^[^/]*//||' -e 's|/.*||')
-# Extract the URI path (e.g., /attachments/.../ubuntu.qcow2)
-URI=$(echo "$REAL_HTTPS_URL" | sed -e 's|^[^/]*//||' -e 's|^[^/]*||')
+# Your permanent Google Drive File ID extracted from your link
+FILE_ID = "1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
 
-echo "Starting secure background proxy tunnel for: $HOST"
+class GoogleDriveProxyHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Step 1: Query the initialization endpoint to clear Google's large file virus scan warning
+        init_url = f"https://google.com{FILE_ID}"
+        req1 = urllib.request.Request(init_url)
+        req1.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+        
+        try:
+            with urllib.request.urlopen(req1) as res1:
+                html = res1.read().decode('utf-8', errors='ignore')
+                # Extract the confirmation token dynamically from the HTML warning page
+                confirm_match = re.search(r'confirm=([A-Za-z0-9_]+)', html)
+                confirm_token = confirm_match.group(1) if confirm_match else ""
+            
+            # Step 2: Build the true, direct chunked-data streaming link
+            stream_url = f"https://google.com{confirm_token}&id={FILE_ID}"
+            req2 = urllib.request.Request(stream_url)
+            req2.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+            
+            with urllib.request.urlopen(req2) as response:
+                self.send_response(200)
+                # Hardcode the exact 5GB file boundaries QEMU needs to balance block drivers
+                self.send_header('Content-Length', '5368709120')
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Accept-Ranges', 'bytes')
+                self.end_headers()
+                
+                # Stream raw blocks straight into QEMU dynamically over the loopback interface
+                while True:
+                    chunk = response.read(65536)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+        except Exception as e:
+            self.send_error(500, str(e))
 
-# Start a background proxy that listens on local port 8000 and securely forwards to the HTTPS host
-socat TCP-LISTEN:8000,fork,reuseaddr OPENSSL:$HOST:443,verify=0 &
-sleep 2
+# Run the stream server locally on port 8000
+server = http.server.HTTPServer(('127.0.0.1', 8000), GoogleDriveProxyHandler)
+server.serve_forever()
+EOF
 
-# This builds an unencrypted local HTTP link that QEMU can read without crashing
-LOCAL_HTTP_URL="http://127.0.0.1:8000$URI"
+# Run the smart translation proxy loop in the background
+python3 proxy.py &
+sleep 3
 
-echo "Launching VM framework. Streaming disk blocks through local proxy..."
+LOCAL_HTTP_URL="http://127.0.0"
 
-# Boot QEMU using the unencrypted proxy URL
+echo "Launching VM framework. Streaming Google Drive blocks into QEMU..."
+
+# Boot QEMU pointing directly to our local stream translator loop
 qemu-system-x86_64 \
   -m 256 \
   -drive file.driver=http,file.url="$LOCAL_HTTP_URL",format=qcow2,cache=writeback,read-only=on \
