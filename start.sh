@@ -6,19 +6,16 @@ python3 -m http.server 8080 &
 echo "Initializing Zero-Download Network Fabric..."
 echo "Spawning real-time Google Drive translation layer..."
 
-# Create a local proxy loop script using Python to bypass Drive safety walls
-cat << 'EOF' > proxy.py
-import sys
+# Create a clean local proxy loop script using Python to bypass Drive safety walls
+cat << 'EOF' > /tmp/proxy.py
 import http.server
 import urllib.request
 import re
 
-# Your permanent Google Drive File ID extracted from your link
 FILE_ID = "1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
 
 class GoogleDriveProxyHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        # Step 1: Query the initialization endpoint to clear Google's large file virus scan warning
         init_url = f"https://google.com{FILE_ID}"
         req1 = urllib.request.Request(init_url)
         req1.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
@@ -26,24 +23,21 @@ class GoogleDriveProxyHandler(http.server.BaseHTTPRequestHandler):
         try:
             with urllib.request.urlopen(req1) as res1:
                 html = res1.read().decode('utf-8', errors='ignore')
-                # Extract the confirmation token dynamically from the HTML warning page
                 confirm_match = re.search(r'confirm=([A-Za-z0-9_]+)', html)
                 confirm_token = confirm_match.group(1) if confirm_match else ""
             
-            # Step 2: Build the true, direct chunked-data streaming link
             stream_url = f"https://google.com{confirm_token}&id={FILE_ID}"
             req2 = urllib.request.Request(stream_url)
             req2.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
             
             with urllib.request.urlopen(req2) as response:
                 self.send_response(200)
-                # Hardcode the exact 5GB file boundaries QEMU needs to balance block drivers
+                # Hardcode the exact 5GB file boundaries QEMU needs
                 self.send_header('Content-Length', '5368709120')
                 self.send_header('Content-Type', 'application/octet-stream')
                 self.send_header('Accept-Ranges', 'bytes')
                 self.end_headers()
                 
-                # Stream raw blocks straight into QEMU dynamically over the loopback interface
                 while True:
                     chunk = response.read(65536)
                     if not chunk:
@@ -58,17 +52,15 @@ server.serve_forever()
 EOF
 
 # Run the smart translation proxy loop in the background
-python3 proxy.py &
-sleep 3
-
-LOCAL_HTTP_URL="http://127.0.0"
+python3 /tmp/proxy.py &
+sleep 5
 
 echo "Launching VM framework. Streaming Google Drive blocks into QEMU..."
 
-# Boot QEMU pointing directly to our local stream translator loop
+# Boot QEMU using the exact fixed IP and port address to prevent connection truncation errors
 qemu-system-x86_64 \
   -m 256 \
-  -drive file.driver=http,file.url="$LOCAL_HTTP_URL",format=qcow2,cache=writeback,read-only=on \
+  -drive file.driver=http,file.url=http://127.0.0 \
   -net nic,model=virtio \
   -net user,hostfwd=tcp::2222-:22 \
   -nographic &
