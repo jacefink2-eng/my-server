@@ -1,30 +1,22 @@
 #!/bin/bash
 
-# Start a background health server so Render registers a healthy application
+# Start background health server for Render so deployments pass
 python3 -m http.server 8080 &
 
-# Create workspace and clear conflicting items
-WORKDIR="/tmp/vm"
-mkdir -p "$WORKDIR"
-rm -f "$WORKDIR/ubuntu.qcow2"
+echo "Initializing Zero-Download Network Fabric..."
 
-# Create a virtual named pipe matching your exact filename
-mkfifo "$WORKDIR/ubuntu.qcow2"
+# Your permanent Google Drive File ID extracted from your token link
+FILE_ID="1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
 
-echo "Streaming ubuntu.qcow2 using authorized token channels..."
+# Universal, non-expiring API download route for Google Drive
+RAW_URL="https://google.com{FILE_ID}"
 
-# The specific link token provided by your storage source
-TOKEN_LINK="https://google.com"
+echo "Launching VM framework. Streaming disk blocks directly into QEMU..."
 
-# Stream the network buffer directly into the virtual pipe
-curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" "$TOKEN_LINK" -o "$WORKDIR/ubuntu.qcow2" &
-
-echo "Launching VM framework. Mapping storage blocks using buffered caching..."
-
-# FIXED: Swapped 'cache=none' to 'cache=writeback' to bypass O_DIRECT restrictions
+# Boot QEMU using the native HTTP protocol driver instead of a local file
 qemu-system-x86_64 \
   -m 256 \
-  -drive file="$WORKDIR/ubuntu.qcow2",format=raw,cache=writeback \
+  -drive file.driver=http,file.url="$RAW_URL",format=qcow2,cache=writeback,read-only=on \
   -net nic,model=virtio \
   -net user,hostfwd=tcp::2222-:22 \
   -nographic &
@@ -32,7 +24,7 @@ qemu-system-x86_64 \
 echo "Initializing remote terminal tunnel... please wait..."
 sleep 5
 
-# Start connection management daemon
+# Start connection management engine
 tmate -F &
 
 sleep 5
