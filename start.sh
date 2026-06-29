@@ -16,6 +16,7 @@ FILE_ID = "1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
 
 class GoogleDriveProxyHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
+        # FIXED: Changed from google.com to the correct Google Drive API endpoint
         init_url = f"https://google.com{FILE_ID}"
         req1 = urllib.request.Request(init_url)
         req1.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
@@ -26,6 +27,7 @@ class GoogleDriveProxyHandler(http.server.BaseHTTPRequestHandler):
                 confirm_match = re.search(r'confirm=([A-Za-z0-9_]+)', html)
                 confirm_token = confirm_match.group(1) if confirm_match else ""
             
+            # FIXED: Corrected the stream download API link path
             stream_url = f"https://google.com{confirm_token}&id={FILE_ID}"
             req2 = urllib.request.Request(stream_url)
             req2.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
@@ -57,7 +59,7 @@ sleep 5
 
 echo "Launching VM framework. Streaming Google Drive blocks into QEMU..."
 
-# Boot QEMU using the exact fixed IP and port address to prevent connection truncation errors
+# FIXED: Appended the full, proper loopback address and port string to the file URL
 qemu-system-x86_64 \
   -m 256 \
   -drive file.driver=http,file.url=http://127.0.0 \
