@@ -4,6 +4,15 @@
 python3 -m http.server 8080 &
 
 echo "Initializing Zero-Download Network Fabric..."
+echo "Configuring low-memory stabilization swaps..."
+
+# Create a 256MB virtual swap file so the container doesn't run out of memory
+mkdir -p /tmp/swap
+dd if=/dev/zero of=/tmp/swap/swapfile bs=1M count=256
+chmod 600 /tmp/swap/swapfile
+mkswap /tmp/swap/swapfile
+swapon /tmp/swap/swapfile
+
 echo "Spawning real-time Google Drive translation layer..."
 
 # Create a clean local proxy loop script using Python to bypass Drive safety walls
@@ -15,7 +24,6 @@ import re
 FILE_ID = "1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
 
 class GoogleDriveProxyHandler(http.server.BaseHTTPRequestHandler):
-    # FIXED: Added HEAD support so QEMU can check the file size headers without throwing a 501
     def do_HEAD(self):
         self.send_response(200)
         self.send_header('Content-Length', '5368709120')
@@ -64,9 +72,9 @@ sleep 5
 
 echo "Launching VM framework. Streaming Google Drive blocks into QEMU..."
 
-# FIXED: Hardcoded full local URL link path string to remove truncation crashes
+# FIXED: Dropped base memory allocation to 128M to fit safely inside Render limits
 qemu-system-x86_64 \
-  -m 256 \
+  -m 128 \
   -drive file.driver=http,file.url=http://127.0.0 \
   -net nic,model=virtio \
   -net user,hostfwd=tcp::2222-:22 \
@@ -80,3 +88,4 @@ tmate -F &
 
 sleep 5
 tmate display -p 'YOUR TERMINAL CONNECTION COMMAND: #{tmate_ssh}'
+wait
