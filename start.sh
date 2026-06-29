@@ -1,24 +1,32 @@
 #!/bin/bash
 
-# Start a background server so Render registers a healthy running application
+# Start a background health server so Render marks the deployment successful
 python3 -m http.server 8080 &
 
-# Build local directory path
-mkdir -p /tmp/vm
-echo "Retrieving the 5GB disk image from Google Drive..."
+# Create the specific workspace directory expected by the engine
+WORKDIR="/tmp/vm"
+mkdir -p "$WORKDIR"
+rm -f "$WORKDIR/ubuntu.qcow2"
+
+# Create a virtual named pipe matching your exact filename
+mkfifo "$WORKDIR/ubuntu.qcow2"
 
 # Your specific Google Drive file ID token
 FILE_ID="1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
 
-# Automatically bypass the large file scanner warning and download the file
-curl -Lb /tmp/cookies.txt "https://google.com(curl -s -L -c /tmp/cookies.txt 'https://google.com | grep -o 'confirm=[^&]*' | cut -d= -f2)&id="$FILE_ID -o /tmp/vm/ubuntu.qcow2
+echo "Initializing on-the-fly streaming pipeline for ubuntu.qcow2..."
 
-echo "Download successful. Launching virtual machine engine..."
+# Run curl in the background, feeding Google Drive blocks straight into the pipe
+curl -L -b "$WORKDIR/cookies.txt" \
+  "https://google.com(curl -s -L -c "$WORKDIR/cookies.txt" 'https://google.com | grep -o 'confirm=[^&]*' | cut -d= -f2)&id="$FILE_ID" \
+  -o "$WORKDIR/ubuntu.qcow2" &
 
-# Run the virtual operating system image using software emulation
+echo "Launching VM emulator container. Listening to streaming blocks..."
+
+# Boot QEMU using the stream pipe as a raw data input stream
 qemu-system-x86_64 \
   -m 256 \
-  -drive file=/tmp/vm/ubuntu.qcow2,format=qcow2,cache=writethrough \
+  -drive file="$WORKDIR/ubuntu.qcow2",format=raw,cache=none \
   -net nic,model=virtio \
   -net user,hostfwd=tcp::22-:22 \
   -nographic
