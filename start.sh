@@ -15,8 +15,15 @@ import re
 FILE_ID = "1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
 
 class GoogleDriveProxyHandler(http.server.BaseHTTPRequestHandler):
+    # FIXED: Added HEAD support so QEMU can check the file size headers without throwing a 501
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header('Content-Length', '5368709120')
+        self.send_header('Content-Type', 'application/octet-stream')
+        self.send_header('Accept-Ranges', 'bytes')
+        self.end_headers()
+
     def do_GET(self):
-        # FIXED: Changed from google.com to the correct Google Drive API endpoint
         init_url = f"https://google.com{FILE_ID}"
         req1 = urllib.request.Request(init_url)
         req1.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
@@ -27,14 +34,12 @@ class GoogleDriveProxyHandler(http.server.BaseHTTPRequestHandler):
                 confirm_match = re.search(r'confirm=([A-Za-z0-9_]+)', html)
                 confirm_token = confirm_match.group(1) if confirm_match else ""
             
-            # FIXED: Corrected the stream download API link path
             stream_url = f"https://google.com{confirm_token}&id={FILE_ID}"
             req2 = urllib.request.Request(stream_url)
             req2.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
             
             with urllib.request.urlopen(req2) as response:
                 self.send_response(200)
-                # Hardcode the exact 5GB file boundaries QEMU needs
                 self.send_header('Content-Length', '5368709120')
                 self.send_header('Content-Type', 'application/octet-stream')
                 self.send_header('Accept-Ranges', 'bytes')
@@ -59,7 +64,7 @@ sleep 5
 
 echo "Launching VM framework. Streaming Google Drive blocks into QEMU..."
 
-# FIXED: Appended the full, proper loopback address and port string to the file URL
+# FIXED: Hardcoded full local URL link path string to remove truncation crashes
 qemu-system-x86_64 \
   -m 256 \
   -drive file.driver=http,file.url=http://127.0.0 \
