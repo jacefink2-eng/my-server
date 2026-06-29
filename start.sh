@@ -11,14 +11,14 @@ echo "Retrieving the 5GB disk image from Google Drive..."
 FILE_ID="1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
 
 # Automatically bypass the large file scanner warning and download the file
-curl -Lb /tmp/cookies.txt "https://google.com(curl -s -L -c /tmp/cookies.txt 'https://google.com | grep -o 'confirm=[^&]*' | cut -d= -f2)&id="$FILE_ID -o /tmp/vm/disk.qcow2
+curl -Lb /tmp/cookies.txt "https://google.com(curl -s -L -c /tmp/cookies.txt 'https://google.com | grep -o 'confirm=[^&]*' | cut -d= -f2)&id="$FILE_ID -o /tmp/vm/ubuntu.qcow2
 
 echo "Download successful. Launching virtual machine engine..."
 
 # Run the virtual operating system image using software emulation
 qemu-system-x86_64 \
   -m 256 \
-  -drive file=/tmp/vm/disk.qcow2,format=qcow2,cache=writethrough \
+  -drive file=/tmp/vm/ubuntu.qcow2,format=qcow2,cache=writethrough \
   -net nic,model=virtio \
   -net user,hostfwd=tcp::22-:22 \
   -nographic
