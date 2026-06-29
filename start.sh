@@ -4,16 +4,12 @@
 python3 -m http.server 8080 &
 
 echo "Initializing Zero-Download Network Fabric..."
-
-# Your permanent Google Drive File ID extracted from your token link
-FILE_ID="1o71ib5b1UL1fBiNJf7QgzeyZ60PVfpuY"
-
-# Universal, non-expiring API download route for Google Drive
-RAW_URL="https://google.com{FILE_ID}"
-
 echo "Launching VM framework. Streaming disk blocks directly into QEMU..."
 
-# Boot QEMU using the native HTTP protocol driver instead of a local file
+# Hardcoded direct link forcing the standard http protocol engine to prevent driver rejection
+RAW_URL="http://google.com"
+
+# Boot QEMU using native HTTP block protocol mappings
 qemu-system-x86_64 \
   -m 256 \
   -drive file.driver=http,file.url="$RAW_URL",format=qcow2,cache=writeback,read-only=on \
